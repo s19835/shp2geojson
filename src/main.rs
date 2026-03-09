@@ -425,9 +425,12 @@ fn run() -> anyhow::Result<()> {
 
     // ── Step C: Create progress + spawn worker threads ────────────────────────
     // Progress is created here so `jobs_enqueued` is the accurate total.
+    let worker_count = jobs.unwrap_or_else(num_cpus::get).max(1);
     let progress = Progress::new(
         matches!(cli.output_format, shp2geojson::cli::OutputFormat::Human),
         jobs_enqueued,
+        worker_count,
+        cli.resume,
     );
 
     // Wire tracing output through the live MultiProgress (if active).
@@ -440,7 +443,6 @@ fn run() -> anyhow::Result<()> {
     let skip_set: Arc<Mutex<HashSet<String>>> = Arc::new(Mutex::new(HashSet::new()));
     let input_root = Arc::new(input.clone());
 
-    let worker_count = jobs.unwrap_or_else(num_cpus::get).max(1);
     let mut worker_handles: Vec<WorkerHandle> = Vec::with_capacity(worker_count);
 
     // Keep cloneable handles for scale-up via /workers.

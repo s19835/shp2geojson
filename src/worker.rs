@@ -150,12 +150,13 @@ pub fn worker_loop(
 /// Returns a boxed `Send` closure that ticks `wp` by one record.
 ///
 /// `WorkerProgress::Noop` is cheap — the closure is a no-op.
-/// `WorkerProgress::Live` wraps a `ProgressBar` which is `Send + Clone` (Arc internally).
+/// `WorkerProgress::Live` wraps a `WorkerBar` whose inner `ProgressBar` is
+/// `Send + Clone` (Arc internally).
 fn wp_ref_for_record(wp: &WorkerProgress) -> Box<dyn Fn() + Send> {
     match wp {
         WorkerProgress::Noop => Box::new(|| {}),
-        WorkerProgress::Live(bar) => {
-            let bar = bar.clone();
+        WorkerProgress::Live(wb) => {
+            let bar = wb.progress_bar();
             Box::new(move || bar.inc(1))
         }
     }
