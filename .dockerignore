@@ -1,0 +1,8 @@
+target/
+.git/
+.github/
+.claude/
+*.md
+!README.md
+shp2geojson-guidelines.md
+shp2geojson-mockup.html
