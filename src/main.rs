@@ -249,7 +249,7 @@ fn run() -> anyhow::Result<()> {
 
     // ── Tracing init ─────────────────────────────────────────────────────────
     let mp_slot: MpSlot = Arc::new(Mutex::new(None));
-    init_tracing(Arc::clone(&mp_slot), None)?;
+    init_tracing(Arc::clone(&mp_slot), Some(&log_path))?;
 
     #[cfg(not(feature = "reproject"))]
     if reproject {
