@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 use std::fs::{self, OpenOptions};
-use std::io::{Read, Seek, SeekFrom, Write};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -13,7 +13,7 @@ use shp2geojson::checkpoint::{done_set, generate_run_id, relative_shp_path, Chec
 use shp2geojson::cli::Cli;
 use shp2geojson::convert::{output_path_for, ConvertOptions};
 use shp2geojson::discover::{discover, EntryStatus};
-use shp2geojson::interactive::{start_stdin_reader, PauseFlag, SlashCommand};
+use shp2geojson::interactive::PauseFlag;
 use shp2geojson::output::{emit, format_bytes, OutputEvent};
 use shp2geojson::progress::Progress;
 use shp2geojson::queue::{Job, JobResult, WorkQueue};
@@ -306,11 +306,15 @@ fn run() -> anyhow::Result<()> {
     // Early progress stub — used before job count is known. Replaced after enqueueing.
     let noop_progress = Progress::Noop;
 
+    // Save report totals before entries are consumed.
+    let report_total_files = report.entries.len();
+    let report_total_bytes = report.total_input_bytes;
+
     // Emit start event.
     emit(
         &OutputEvent::Start {
-            total_files: report.entries.len(),
-            total_bytes: report.total_input_bytes,
+            total_files: report_total_files,
+            total_bytes: report_total_bytes,
             timestamp: iso_timestamp_now(),
         },
         &cli.output_format,
@@ -431,6 +435,8 @@ fn run() -> anyhow::Result<()> {
         jobs_enqueued,
         worker_count,
         cli.resume,
+        report_total_files,
+        report_total_bytes,
     );
 
     // Wire tracing output through the live MultiProgress (if active).
@@ -473,19 +479,7 @@ fn run() -> anyhow::Result<()> {
         });
     }
 
-    // ── Step D: Set up interactive mode + Ctrl+C ──────────────────────────────
-    let is_interactive = matches!(cli.output_format, shp2geojson::cli::OutputFormat::Human)
-        && console::Term::stderr().is_term();
-
-    let command_rx = if is_interactive {
-        progress.println(
-            "  \x1b[38;5;103mType\x1b[0m \x1b[38;5;69;1m/help\x1b[0m \x1b[38;5;103mfor commands  ·  \x1b[38;5;69;1mCtrl+C\x1b[0m \x1b[38;5;103mto pause and checkpoint\x1b[0m"
-        );
-        Some(start_stdin_reader(progress.multi_progress()))
-    } else {
-        None
-    };
-
+    // ── Step D: Ctrl+C graceful shutdown ───────────────────────────────────────
     // Ctrl+C handler: signal workers to exit gracefully.
     let ctrlc_flag = Arc::new(AtomicBool::new(false));
     {
@@ -508,8 +502,6 @@ fn run() -> anyhow::Result<()> {
     }
 
     let tick_rx = crossbeam_channel::tick(Duration::from_millis(200));
-    let never_rx = crossbeam_channel::never::<SlashCommand>();
-    let cmd_rx = command_rx.as_ref().unwrap_or(&never_rx);
 
     // ── Step E: Drain results via crossbeam select! ───────────────────────────
     let mut quit_requested = false;
@@ -596,33 +588,6 @@ fn run() -> anyhow::Result<()> {
                     break;
                 }
             },
-            recv(cmd_rx) -> msg => {
-                match msg {
-                    Ok(cmd) => {
-                        handle_slash_command(
-                            cmd,
-                            &progress,
-                            &pause_flag,
-                            &skip_set,
-                            &mut checkpoint,
-                            &state_path,
-                            &mut worker_handles,
-                            &scale_job_rx,
-                            &scale_result_tx,
-                            &input_root,
-                            &log_path,
-                            &cli,
-                            &app_config,
-                            converted,
-                            failed,
-                            &batch_start,
-                        );
-                    }
-                    Err(_) => {
-                        // stdin EOF — keep processing results.
-                    }
-                }
-            },
             recv(tick_rx) -> _ => {
                 // Periodic tick — prune completed worker handles.
                 worker_handles.retain(|h| !h.done.load(Ordering::Relaxed));
@@ -689,202 +654,6 @@ fn run() -> anyhow::Result<()> {
     );
 
     Ok(())
-}
-
-/// Handles a [`SlashCommand`] dispatched from the interactive stdin reader.
-///
-/// This function is intentionally long-argument to avoid global mutable state.
-/// All state that commands might read or mutate is threaded through explicitly.
-#[allow(clippy::too_many_arguments)]
-fn handle_slash_command(
-    cmd: SlashCommand,
-    progress: &Progress,
-    pause_flag: &PauseFlag,
-    skip_set: &Arc<Mutex<HashSet<String>>>,
-    checkpoint: &mut CheckpointState,
-    state_path: &Path,
-    worker_handles: &mut Vec<WorkerHandle>,
-    scale_job_rx: &crossbeam_channel::Receiver<Job>,
-    scale_result_tx: &crossbeam_channel::Sender<JobResult>,
-    input_root: &Arc<PathBuf>,
-    log_path: &Path,
-    cli: &Cli,
-    app_config: &config::AppConfig,
-    converted: u64,
-    failed: u64,
-    batch_start: &Instant,
-) {
-    match cmd {
-        SlashCommand::Status => {
-            let active = worker_handles
-                .iter()
-                .filter(|h| !h.done.load(Ordering::Relaxed))
-                .count();
-            let pending = checkpoint.pending.len();
-            let elapsed = batch_start.elapsed();
-            progress.println(format!(
-                "  \x1b[38;5;78m✓ {converted}\x1b[0m done  \x1b[38;5;203m✗ {failed}\x1b[0m failed  \x1b[38;5;80m⧖ {pending}\x1b[0m pending\n  \x1b[38;5;69mworkers:\x1b[0m {active} active  \x1b[38;5;103m{elapsed:.1?} elapsed\x1b[0m"
-            ));
-        }
-        SlashCommand::Pause => {
-            pause_flag.set_paused();
-            if let Err(e) = checkpoint.save(state_path) {
-                progress.println(format!("warning: checkpoint save failed: {e}"));
-            }
-            let hook_vars = std::collections::HashMap::new();
-            hooks::fire_hook_if_configured(&app_config.hooks, "on_pause", &hook_vars);
-            progress
-                .println("Paused. Workers will idle after current file. Type /resume to continue.");
-            emit(
-                &OutputEvent::Paused {
-                    converted,
-                    failed,
-                    pending: checkpoint.pending.len(),
-                },
-                &cli.output_format,
-                progress,
-            );
-        }
-        SlashCommand::Resume => {
-            if !pause_flag.is_paused() {
-                progress.println("Not paused.");
-                return;
-            }
-            pause_flag.clear();
-            progress.println("Resuming workers.");
-            emit(&OutputEvent::Resumed, &cli.output_format, progress);
-        }
-        SlashCommand::Workers(n) => {
-            let n = n.max(1);
-            let current = worker_handles
-                .iter()
-                .filter(|h| !h.done.load(Ordering::Relaxed))
-                .count();
-            if n > current {
-                // Scale up: spawn additional workers.
-                for _ in current..n {
-                    let flags = WorkerFlags::new(
-                        pause_flag.arc(),
-                        Arc::clone(skip_set),
-                        Arc::clone(input_root),
-                    );
-                    let exit = Arc::clone(&flags.exit);
-                    let done = Arc::clone(&flags.done);
-                    let rx = scale_job_rx.clone();
-                    let tx = scale_result_tx.clone();
-                    let wp = progress.add_worker_bar(worker_handles.len());
-                    worker_handles.push(WorkerHandle {
-                        thread: std::thread::spawn(move || worker_loop(rx, tx, wp, flags)),
-                        exit,
-                        done,
-                    });
-                }
-            } else if n < current {
-                // Scale down: signal excess workers to exit after their current job.
-                let excess = current - n;
-                let mut signaled = 0;
-                for h in worker_handles.iter().rev() {
-                    if signaled >= excess {
-                        break;
-                    }
-                    if !h.done.load(Ordering::Relaxed) {
-                        h.exit.store(true, Ordering::Relaxed);
-                        signaled += 1;
-                    }
-                }
-            }
-            progress.println(format!("Workers: {current} → {n}"));
-            emit(
-                &OutputEvent::WorkersChanged {
-                    from: current,
-                    to: n,
-                },
-                &cli.output_format,
-                progress,
-            );
-        }
-        SlashCommand::Skip(ref path) => {
-            let rel = path.trim();
-            let matched = checkpoint
-                .pending
-                .iter()
-                .find(|p| p.ends_with(rel) || p.as_str() == rel)
-                .cloned();
-            match matched {
-                None => {
-                    progress.println(format!("  not found in pending queue: {rel}"));
-                }
-                Some(matched_rel) => {
-                    skip_set.lock().unwrap().insert(matched_rel.clone());
-                    checkpoint.pending.retain(|p| p != &matched_rel);
-                    if let Err(e) = checkpoint.save(state_path) {
-                        progress.println(format!("warning: checkpoint save failed: {e}"));
-                    }
-                    log_error(
-                        log_path,
-                        "SKIPPED",
-                        &input_root.join(&matched_rel),
-                        "user /skip command",
-                    );
-                    progress.println(format!("  skipped: {matched_rel}"));
-                    emit(
-                        &OutputEvent::FileSkippedByUser { file: matched_rel },
-                        &cli.output_format,
-                        progress,
-                    );
-                }
-            }
-        }
-        SlashCommand::Log => match std::fs::File::open(log_path) {
-            Err(_) => progress.println("  error log not found"),
-            Ok(mut file) => {
-                let size = file.metadata().map(|m| m.len()).unwrap_or(0);
-                let seek_pos = size.saturating_sub(4096);
-                let _ = file.seek(SeekFrom::Start(seek_pos));
-                let mut buf = String::new();
-                let _ = file.read_to_string(&mut buf);
-                progress.println("── error log (last 20 lines) ──────────────────────");
-                for line in buf
-                    .lines()
-                    .rev()
-                    .take(20)
-                    .collect::<Vec<_>>()
-                    .into_iter()
-                    .rev()
-                {
-                    progress.println(format!("  {line}"));
-                }
-                progress.println("────────────────────────────────────────────────────");
-            }
-        },
-        SlashCommand::DryRun => {
-            progress.println(format!(
-                "── Remaining pending ({}) ──",
-                checkpoint.pending.len()
-            ));
-            for p in &checkpoint.pending {
-                progress.println(format!("  pending  {p}"));
-            }
-            progress.println("────────────────────────────────────────────────────");
-        }
-        SlashCommand::Quit => {
-            pause_flag.clear();
-            // Signal all workers to stop pulling new jobs after their current one.
-            for h in worker_handles.iter() {
-                h.exit.store(true, Ordering::Relaxed);
-            }
-            if let Err(e) = checkpoint.save(state_path) {
-                progress.println(format!("warning: checkpoint save failed: {e}"));
-            }
-            progress.println("Saving checkpoint and exiting after in-flight files complete...");
-            // Do NOT set quit_requested — let count-based termination drain
-            // all in-flight results so their checkpoint updates are written.
-        }
-        SlashCommand::Help => {
-            // Help text is already printed by the stdin reader thread before
-            // the command is forwarded here — nothing to do.
-        }
-    }
 }
 
 /// Appends a single error/warning line to the error log file.

@@ -11,7 +11,7 @@ use crate::progress::Progress;
 //   coral (#ff7c5c), green (#56d18a), red (#f06b6b), yellow (#f0c040),
 //   blue (#5b8fff), cyan (#4ecdc4), purple (#a78bfa), dim (#6b7499)
 
-fn s_coral() -> Style {
+fn _s_coral() -> Style {
     Style::new().color256(209).bold()
 }
 fn s_green() -> Style {
@@ -198,21 +198,12 @@ impl fmt::Display for OutputEvent {
 pub fn format_styled(event: &OutputEvent) -> String {
     match event {
         OutputEvent::Start {
-            total_files,
-            total_bytes,
-            timestamp,
+            total_files: _,
+            total_bytes: _,
+            timestamp: _,
         } => {
-            format!(
-                "{}\n{}\n  {} {} file(s)   {} {}   {} {}",
-                s_muted().apply_to(DIVIDER),
-                s_coral().apply_to(format_args!("shp2geojson  {}", env!("CARGO_PKG_VERSION"))),
-                s_muted().apply_to("files:"),
-                s_text().apply_to(total_files),
-                s_muted().apply_to("input:"),
-                s_cyan().apply_to(format_bytes(*total_bytes)),
-                s_muted().apply_to("started:"),
-                s_dim().apply_to(timestamp),
-            )
+            // Banner is already printed by Progress::new(); nothing extra needed in styled mode.
+            String::new()
         }
         OutputEvent::FileDone {
             file,
@@ -351,6 +342,9 @@ pub fn emit(event: &OutputEvent, format: &OutputFormat, progress: &Progress) {
             } else {
                 format!("{event}")
             };
+            if msg.is_empty() {
+                return;
+            }
             match progress {
                 Progress::Live { mp, .. } => {
                     let _ = mp.println(&msg);

@@ -32,10 +32,17 @@ impl Progress {
     ///
     /// ```
     /// use shp2geojson::progress::Progress;
-    /// let p = Progress::new(true, 10, 4, false);
+    /// let p = Progress::new(true, 10, 4, false, 10, 1000);
     /// // Returns Noop when not a TTY (e.g. in tests).
     /// ```
-    pub fn new(is_human: bool, total_files: u64, worker_count: usize, resume: bool) -> Self {
+    pub fn new(
+        is_human: bool,
+        total_files: u64,
+        worker_count: usize,
+        resume: bool,
+        file_count: usize,
+        total_bytes: u64,
+    ) -> Self {
         if !is_human || !console::Term::stderr().is_term() {
             return Self::Noop;
         }
@@ -48,9 +55,10 @@ impl Progress {
         } else {
             format!("{C_DIM}–{C_RESET}")
         };
+        let input_str = crate::output::format_bytes(total_bytes);
         let _ = mp.println(format!("{C_MUTED}{DIVIDER}{C_RESET}"));
         let _ = mp.println(format!(
-            "{C_CORAL}shp2geojson{C_RESET}  {C_DIM}v{}{C_RESET}   {C_MUTED}workers:{C_RESET} {C_BLUE}{worker_count}{C_RESET}   {C_MUTED}resume:{C_RESET} {resume_str}",
+            "{C_CORAL}shp2geojson{C_RESET}  {C_DIM}v{}{C_RESET}   {C_MUTED}workers:{C_RESET} {C_BLUE}{worker_count}{C_RESET}   {C_MUTED}files:{C_RESET} {C_GREEN}{file_count}{C_RESET}   {C_MUTED}input:{C_RESET} {C_DIM}{input_str}{C_RESET}   {C_MUTED}resume:{C_RESET} {resume_str}",
             env!("CARGO_PKG_VERSION"),
         ));
         let _ = mp.println(format!("{C_MUTED}{DIVIDER}{C_RESET}"));
@@ -221,14 +229,14 @@ mod tests {
 
     #[test]
     fn test_progress_new_returns_noop_when_not_human() {
-        let p = Progress::new(false, 10, 4, false);
+        let p = Progress::new(false, 10, 4, false, 10, 1000);
         assert!(!p.is_live());
     }
 
     #[test]
     fn test_progress_new_returns_noop_on_non_tty() {
         // In test environments stderr is not a TTY, so is_human=true still gives Noop.
-        let p = Progress::new(true, 10, 4, false);
+        let p = Progress::new(true, 10, 4, false, 10, 1000);
         assert!(!p.is_live());
     }
 
