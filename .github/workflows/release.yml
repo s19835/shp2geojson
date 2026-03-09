@@ -21,10 +21,6 @@ jobs:
             os: ubuntu-latest
             install: sudo apt-get update && sudo apt-get install -y libproj-dev
             artifact: shp2geojson
-          - target: x86_64-apple-darwin
-            os: macos-13
-            install: brew install proj
-            artifact: shp2geojson
           - target: aarch64-apple-darwin
             os: macos-latest
             install: brew install proj
