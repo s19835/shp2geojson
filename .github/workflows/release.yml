@@ -1,0 +1,84 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            install: sudo apt-get update && sudo apt-get install -y libproj-dev
+            artifact: shp2geojson
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            install: |
+              sudo apt-get update
+              sudo apt-get install -y gcc-aarch64-linux-gnu libproj-dev
+            artifact: shp2geojson
+            cross: true
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            install: brew install proj
+            artifact: shp2geojson
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            install: brew install proj
+            artifact: shp2geojson
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - run: ${{ matrix.install }}
+
+      - name: Build (native)
+        if: ${{ !matrix.cross }}
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Build (cross)
+        if: ${{ matrix.cross }}
+        run: |
+          cargo install cross --git https://github.com/cross-rs/cross
+          cross build --release --target ${{ matrix.target }}
+
+      - name: Package
+        run: |
+          cd target/${{ matrix.target }}/release
+          tar czf ../../../shp2geojson-${{ matrix.target }}.tar.gz ${{ matrix.artifact }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shp2geojson-${{ matrix.target }}
+          path: shp2geojson-${{ matrix.target }}.tar.gz
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create ${{ github.ref_name }} \
+            --title "${{ github.ref_name }}" \
+            --generate-notes \
+            shp2geojson-*.tar.gz
