@@ -66,19 +66,20 @@ impl Default for PauseFlag {
     }
 }
 
-/// Help text printed by `/help`.
+/// Help text printed by `/help`, styled with ANSI colors matching the mockup.
 pub const HELP_TEXT: &str = "\
-── Available Commands ─────────────────────────────────────
-  /status     Print worker status and queue depth
-  /pause      Pause all workers, write checkpoint
-  /resume     Resume paused workers
-  /workers N  Scale worker count to N
-  /skip FILE  Skip a pending file
-  /log        Show last 20 lines of error log
-  /dry-run    List remaining pending files
-  /quit       Save checkpoint and exit
-  /help       Show this help
-───────────────────────────────────────────────────────────";
+\x1b[38;5;60m──── Available Commands ─────────────────────────────────────────────\x1b[0m
+  \x1b[38;5;69;1m/status\x1b[0m      \x1b[38;5;103mPrint worker status and queue depth\x1b[0m
+  \x1b[38;5;69;1m/pause\x1b[0m       \x1b[38;5;103mPause all workers, write checkpoint\x1b[0m
+  \x1b[38;5;69;1m/resume\x1b[0m      \x1b[38;5;103mResume paused workers\x1b[0m
+  \x1b[38;5;69;1m/workers\x1b[0m \x1b[38;5;80mN\x1b[0m  \x1b[38;5;103mDynamically scale worker count up or down\x1b[0m
+  \x1b[38;5;69;1m/skip\x1b[0m \x1b[38;5;80mFILE\x1b[0m  \x1b[38;5;103mSkip a pending file, mark as SKIPPED\x1b[0m
+  \x1b[38;5;69;1m/log\x1b[0m         \x1b[38;5;103mTail conversion_errors.log inline\x1b[0m
+  \x1b[38;5;69;1m/dry-run\x1b[0m     \x1b[38;5;103mPreview remaining pending files\x1b[0m
+  \x1b[38;5;69;1m/quit\x1b[0m        \x1b[38;5;103mCheckpoint state and exit cleanly\x1b[0m
+  \x1b[38;5;69;1m/help\x1b[0m        \x1b[38;5;103mShow this help\x1b[0m
+\x1b[38;5;60m───────────────────────────────────────────────────────────────────────\x1b[0m
+  \x1b[38;5;103mCtrl+C — pause and checkpoint  ·  Ctrl+C×2 — force quit\x1b[0m";
 
 /// Starts a background thread that reads `/command` lines from stdin and sends
 /// parsed [`SlashCommand`]s on the returned receiver.

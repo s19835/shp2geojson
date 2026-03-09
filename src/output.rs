@@ -1,9 +1,50 @@
 use std::fmt;
 
+use console::Style;
 use serde::Serialize;
 
 use crate::cli::OutputFormat;
 use crate::progress::Progress;
+
+// ── Mockup color palette ────────────────────────────────────────────────────
+// These match the CSS variables in shp2geojson-mockup.html:
+//   coral (#ff7c5c), green (#56d18a), red (#f06b6b), yellow (#f0c040),
+//   blue (#5b8fff), cyan (#4ecdc4), purple (#a78bfa), dim (#6b7499)
+
+fn s_coral() -> Style {
+    Style::new().color256(209).bold()
+}
+fn s_green() -> Style {
+    Style::new().color256(78)
+}
+fn s_red() -> Style {
+    Style::new().color256(203)
+}
+fn s_yellow() -> Style {
+    Style::new().color256(220)
+}
+fn s_blue() -> Style {
+    Style::new().color256(69)
+}
+fn s_cyan() -> Style {
+    Style::new().color256(80)
+}
+fn s_purple() -> Style {
+    Style::new().color256(141)
+}
+fn s_dim() -> Style {
+    Style::new().color256(103)
+}
+fn s_muted() -> Style {
+    Style::new().color256(60)
+}
+fn s_text() -> Style {
+    Style::new().color256(189)
+}
+
+/// The horizontal divider line matching the mockup.
+pub const DIVIDER: &str =
+    "────────────────────────────────────────────────────────────────────────";
 
 /// A lifecycle event emitted during a conversion run.
 ///
@@ -86,6 +127,7 @@ pub enum OutputEvent {
 }
 
 impl fmt::Display for OutputEvent {
+    /// Plain-text Display (used in non-TTY / tests). Color version is in [`format_styled`].
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             OutputEvent::Start {
@@ -107,14 +149,14 @@ impl fmt::Display for OutputEvent {
             } => {
                 write!(
                     f,
-                    "converted  {file} -> {output}  ({features} features, {duration_ms}ms)",
+                    "  ✓ converted  {file} → {output}  ({features} features, {duration_ms}ms)",
                 )
             }
             OutputEvent::FileFailed { file, reason } => {
-                write!(f, "FAILED   {file} — {reason}")
+                write!(f, "  ✗ FAILED  {file} — {reason}")
             }
             OutputEvent::FileSkipped { file, reason } => {
-                write!(f, "SKIPPED  {file} — {reason}")
+                write!(f, "  ⚠ SKIPPED  {file} — {reason}")
             }
             OutputEvent::BatchDone {
                 converted,
@@ -144,8 +186,143 @@ impl fmt::Display for OutputEvent {
                 write!(f, "Workers: {from} → {to}")
             }
             OutputEvent::FileSkippedByUser { file } => {
-                write!(f, "SKIPPED (user)  {file}")
+                write!(f, "  ⚠ SKIPPED (user)  {file}")
             }
+        }
+    }
+}
+
+/// Formats an [`OutputEvent`] with ANSI colors matching the mockup palette.
+///
+/// Used only when stderr is a TTY in human mode.
+pub fn format_styled(event: &OutputEvent) -> String {
+    match event {
+        OutputEvent::Start {
+            total_files,
+            total_bytes,
+            timestamp,
+        } => {
+            format!(
+                "{}\n{}\n  {} {} file(s)   {} {}   {} {}",
+                s_muted().apply_to(DIVIDER),
+                s_coral().apply_to(format_args!("shp2geojson  {}", env!("CARGO_PKG_VERSION"))),
+                s_muted().apply_to("files:"),
+                s_text().apply_to(total_files),
+                s_muted().apply_to("input:"),
+                s_cyan().apply_to(format_bytes(*total_bytes)),
+                s_muted().apply_to("started:"),
+                s_dim().apply_to(timestamp),
+            )
+        }
+        OutputEvent::FileDone {
+            file,
+            output,
+            duration_ms,
+            features,
+        } => {
+            // Extract just filenames for cleaner display
+            let shp_name = std::path::Path::new(file)
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_else(|| file.clone());
+            let out_name = std::path::Path::new(output)
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_else(|| output.clone());
+            format!(
+                "  {} {}  {}  {}  {} {} {}",
+                s_green().apply_to("✓"),
+                s_text().apply_to(&shp_name),
+                s_dim().apply_to("→"),
+                s_cyan().apply_to(&out_name),
+                s_dim().apply_to(format_args!("({features} features,")),
+                s_dim().apply_to(format_args!("{duration_ms}ms")),
+                s_dim().apply_to(")"),
+            )
+        }
+        OutputEvent::FileFailed { file, reason } => {
+            let shp_name = std::path::Path::new(file)
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_else(|| file.clone());
+            format!(
+                "  {} {}  {}  {}",
+                s_red().apply_to("✗ FAILED"),
+                s_text().apply_to(&shp_name),
+                s_dim().apply_to("—"),
+                s_red().apply_to(reason),
+            )
+        }
+        OutputEvent::FileSkipped { file, reason } => {
+            let shp_name = std::path::Path::new(file)
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_else(|| file.clone());
+            format!(
+                "  {} {}  {}  {}",
+                s_yellow().apply_to("⚠ SKIPPED"),
+                s_text().apply_to(&shp_name),
+                s_dim().apply_to("—"),
+                s_yellow().apply_to(reason),
+            )
+        }
+        OutputEvent::BatchDone {
+            converted,
+            failed,
+            elapsed_s,
+            gb_processed,
+        } => {
+            format!(
+                "{}\n  {} {}   {} {}   {} {}   {} {}\n{}",
+                s_muted().apply_to(DIVIDER),
+                s_green().apply_to("✓ converted"),
+                s_green().bold().apply_to(converted),
+                s_red().apply_to("✗ failed"),
+                s_red().bold().apply_to(failed),
+                s_purple().apply_to("elapsed"),
+                s_purple().bold().apply_to(format_args!("{elapsed_s:.1}s")),
+                s_purple().apply_to("processed"),
+                s_purple()
+                    .bold()
+                    .apply_to(format_args!("{gb_processed:.3} GB")),
+                s_muted().apply_to(DIVIDER),
+            )
+        }
+        OutputEvent::Paused {
+            converted,
+            failed,
+            pending,
+        } => {
+            format!(
+                "  {} {} {} done  {} failed  {} pending",
+                s_yellow().bold().apply_to("⏸ PAUSED"),
+                s_dim().apply_to("—"),
+                s_green().apply_to(converted),
+                s_red().apply_to(failed),
+                s_cyan().apply_to(pending),
+            )
+        }
+        OutputEvent::Resumed => {
+            format!(
+                "  {} workers are running",
+                s_green().bold().apply_to("▶ RESUMED —"),
+            )
+        }
+        OutputEvent::WorkersChanged { from, to } => {
+            format!(
+                "  {} {} {} {}",
+                s_blue().apply_to("Workers:"),
+                s_dim().apply_to(from),
+                s_cyan().apply_to("→"),
+                s_cyan().bold().apply_to(to),
+            )
+        }
+        OutputEvent::FileSkippedByUser { file } => {
+            format!(
+                "  {} {}",
+                s_yellow().apply_to("⚠ SKIPPED (user)"),
+                s_text().apply_to(file),
+            )
         }
     }
 }
@@ -167,14 +344,22 @@ pub fn emit(event: &OutputEvent, format: &OutputFormat, progress: &Progress) {
             });
             println!("{json}");
         }
-        OutputFormat::Human => match progress {
-            Progress::Live { mp, .. } => {
-                let _ = mp.println(format!("{event}"));
+        OutputFormat::Human => {
+            let is_tty = console::Term::stderr().is_term();
+            let msg = if is_tty {
+                format_styled(event)
+            } else {
+                format!("{event}")
+            };
+            match progress {
+                Progress::Live { mp, .. } => {
+                    let _ = mp.println(&msg);
+                }
+                Progress::Noop => {
+                    eprintln!("{msg}");
+                }
             }
-            Progress::Noop => {
-                eprintln!("{event}");
-            }
-        },
+        }
     }
 }
 

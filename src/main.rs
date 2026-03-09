@@ -476,6 +476,9 @@ fn run() -> anyhow::Result<()> {
         && console::Term::stderr().is_term();
 
     let command_rx = if is_interactive {
+        progress.println(
+            "  \x1b[38;5;103mType\x1b[0m \x1b[38;5;69;1m/help\x1b[0m \x1b[38;5;103mfor commands  ·  \x1b[38;5;69;1mCtrl+C\x1b[0m \x1b[38;5;103mto pause and checkpoint\x1b[0m"
+        );
         Some(start_stdin_reader(progress.multi_progress()))
     } else {
         None
@@ -718,7 +721,7 @@ fn handle_slash_command(
             let pending = checkpoint.pending.len();
             let elapsed = batch_start.elapsed();
             progress.println(format!(
-                "  files: {converted} done  {failed} failed  {pending} pending\n  workers: {active} active  {elapsed:.1?} elapsed"
+                "  \x1b[38;5;78m✓ {converted}\x1b[0m done  \x1b[38;5;203m✗ {failed}\x1b[0m failed  \x1b[38;5;80m⧖ {pending}\x1b[0m pending\n  \x1b[38;5;69mworkers:\x1b[0m {active} active  \x1b[38;5;103m{elapsed:.1?} elapsed\x1b[0m"
             ));
         }
         SlashCommand::Pause => {

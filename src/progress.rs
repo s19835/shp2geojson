@@ -30,11 +30,12 @@ impl Progress {
         let overall = mp.add(ProgressBar::new(total_files));
         overall.set_style(
             ProgressStyle::with_template(
-                "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} files ({eta} remaining)"
+                "  {spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} files  {msg}  ({eta} remaining)"
             )
             .unwrap()
-            .progress_chars("█▓░"),
+            .progress_chars("━╸─"),
         );
+        overall.set_message("");
         overall.enable_steady_tick(std::time::Duration::from_millis(100));
 
         Self::Live { mp, overall }
@@ -70,7 +71,7 @@ impl Progress {
                 let bar = mp.add(ProgressBar::new(0));
                 bar.set_style(
                     ProgressStyle::with_template(
-                        &format!("  W{worker_index}: {{spinner:.yellow}} {{msg:.dim}} [{{bar:30.green/black}}] {{pos}}/{{len}} records")
+                        &format!("    \x1b[38;5;60mWorker\x1b[0m \x1b[38;5;69m{worker_index}\x1b[0m  {{spinner:.yellow}} {{msg:.dim}} [{{bar:25.green/black}}] {{pos}}/{{len}}")
                     )
                     .unwrap()
                     .progress_chars("━╸─"),
