@@ -3,6 +3,13 @@ name = "shp2geojson"
 version = "0.1.0"
 edition = "2021"
 description = "High-performance ESRI Shapefile to GeoJSON converter."
+license = "MIT"
+repository = "https://github.com/s19835/shp2geojson"
+homepage = "https://github.com/s19835/shp2geojson"
+readme = "README.md"
+keywords = ["shapefile", "geojson", "gis", "conversion", "geospatial"]
+categories = ["command-line-utilities", "science::geo"]
+exclude = [".github/", "CLAUDE.md", "shp2geojson-guidelines.md", "shp2geojson-mockup.html"]
 
 [[bin]]
 name = "shp2geojson"
