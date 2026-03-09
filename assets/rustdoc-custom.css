@@ -1,0 +1,278 @@
+/*
+ * shp2geojson — Custom rustdoc theme
+ *
+ * Light mode with accent colours inspired by the CLI mockup:
+ *   coral  #ff7c5c  (primary / headings)
+ *   cyan   #4ecdc4  (links)
+ *   blue   #5b8fff  (code highlights)
+ *   green  #56d18a  (success / types)
+ *   purple #a78bfa  (sidebar)
+ */
+
+/* ── Force light base ─────────────────────────────────────────────────── */
+:root,
+rustdoc-theme-toggle {
+    color-scheme: light !important;
+}
+
+body, body.rustdoc {
+    background-color: #fafbfe !important;
+    color: #2d3142 !important;
+}
+
+/* ── Layout: centre content, widen main area ──────────────────────────── */
+.width-limiter {
+    max-width: 960px !important;
+    margin: 0 auto !important;
+    padding: 0 32px !important;
+}
+
+main {
+    padding-top: 16px !important;
+}
+
+#main-content {
+    max-width: 100% !important;
+}
+
+/* ── Sidebar ──────────────────────────────────────────────────────────── */
+nav.sidebar {
+    background: #f0f1f8 !important;
+    border-right: 1px solid #dfe2ef !important;
+}
+
+.sidebar .sidebar-crate h2 a {
+    color: #ff7c5c !important;
+    font-weight: 700 !important;
+}
+
+.sidebar .sidebar-crate .version {
+    color: #8b90a8 !important;
+}
+
+nav.sidebar a {
+    color: #5b5f7a !important;
+}
+
+nav.sidebar a:hover,
+nav.sidebar a.current {
+    color: #ff7c5c !important;
+    background: #fff0ec !important;
+}
+
+.sidebar h3,
+.sidebar-elems h3 {
+    color: #a78bfa !important;
+    font-size: 11px !important;
+    letter-spacing: 0.12em !important;
+    text-transform: uppercase !important;
+}
+
+#rustdoc-toc a {
+    color: #5b5f7a !important;
+}
+
+#rustdoc-toc a:hover {
+    color: #ff7c5c !important;
+}
+
+/* ── Top bar ──────────────────────────────────────────────────────────── */
+rustdoc-topbar, .rustdoc-topbar {
+    background: #ffffff !important;
+    border-bottom: 1px solid #e8e9f0 !important;
+}
+
+rustdoc-topbar h2 a,
+.rustdoc-topbar h2 a {
+    color: #ff7c5c !important;
+}
+
+/* ── Headings ─────────────────────────────────────────────────────────── */
+.main-heading h1,
+h1.fqn {
+    color: #ff7c5c !important;
+    font-weight: 700 !important;
+    border-bottom: 2px solid #ffe0d6 !important;
+    padding-bottom: 8px !important;
+}
+
+h2, h3, h4, h5, h6 {
+    color: #2d3142 !important;
+}
+
+.section-header a,
+h2 a, h3 a {
+    color: #2d3142 !important;
+}
+
+/* Section headings in all-items page */
+#main-content h3 {
+    color: #a78bfa !important;
+    font-size: 13px !important;
+    letter-spacing: 0.1em !important;
+    text-transform: uppercase !important;
+    border-bottom: 1px solid #e8e9f0 !important;
+    padding-bottom: 6px !important;
+    margin-top: 24px !important;
+}
+
+/* ── Links ────────────────────────────────────────────────────────────── */
+a {
+    color: #4ecdc4 !important;
+}
+
+a:hover {
+    color: #ff7c5c !important;
+}
+
+/* Item links in lists */
+.all-items a,
+ul.all-items a {
+    color: #5b8fff !important;
+    text-decoration: none !important;
+}
+
+.all-items a:hover {
+    color: #ff7c5c !important;
+    text-decoration: underline !important;
+}
+
+/* ── Code blocks ──────────────────────────────────────────────────────── */
+pre, code, .rust {
+    background: #f5f6fb !important;
+    color: #2d3142 !important;
+    border: 1px solid #e8e9f0 !important;
+    border-radius: 6px !important;
+}
+
+code {
+    border: none !important;
+    padding: 1px 5px !important;
+    border-radius: 4px !important;
+    font-size: 0.92em !important;
+}
+
+pre code {
+    border: none !important;
+    padding: 0 !important;
+}
+
+pre.rust {
+    padding: 14px 18px !important;
+}
+
+/* Syntax highlights */
+pre .kw, .code-header .kw { color: #a78bfa !important; }          /* keywords → purple */
+pre .kw-2, .code-header .kw-2 { color: #ff7c5c !important; }      /* self/crate → coral */
+pre .string, .code-header .string { color: #56d18a !important; }   /* strings → green */
+pre .number, .code-header .number { color: #ff7c5c !important; }   /* numbers → coral */
+pre .comment, .code-header .comment { color: #8b90a8 !important; } /* comments → muted */
+pre .macro, .code-header .macro { color: #5b8fff !important; }     /* macros → blue */
+pre .type, pre .self { color: #4ecdc4 !important; }                /* types → cyan */
+
+/* ── Item declarations (fn signatures, struct fields) ─────────────────── */
+.item-decl pre {
+    background: #ffffff !important;
+    border: 1px solid #e8e9f0 !important;
+    border-left: 3px solid #ff7c5c !important;
+    border-radius: 0 6px 6px 0 !important;
+    padding: 14px 18px !important;
+}
+
+/* ── Docblock ─────────────────────────────────────────────────────────── */
+.docblock {
+    color: #3d4059 !important;
+    line-height: 1.65 !important;
+}
+
+.docblock code {
+    background: #eef0f8 !important;
+    color: #5b8fff !important;
+}
+
+/* ── Type/fn signature colours ────────────────────────────────────────── */
+.fn, .method, .where {
+    color: #2d3142 !important;
+}
+
+/* ── Search box ───────────────────────────────────────────────────────── */
+.search-input, #search-input {
+    background: #ffffff !important;
+    border: 1px solid #dfe2ef !important;
+    border-radius: 8px !important;
+    color: #2d3142 !important;
+}
+
+.search-input:focus, #search-input:focus {
+    border-color: #ff7c5c !important;
+    box-shadow: 0 0 0 3px rgba(255, 124, 92, 0.15) !important;
+}
+
+/* ── Toolbar / settings ───────────────────────────────────────────────── */
+rustdoc-toolbar {
+    border-bottom: 1px solid #e8e9f0 !important;
+}
+
+/* ── Summary rows / item table ────────────────────────────────────────── */
+.item-table .item-name a {
+    color: #5b8fff !important;
+    font-weight: 500 !important;
+}
+
+.item-table .item-name a:hover {
+    color: #ff7c5c !important;
+}
+
+.item-table .desc {
+    color: #5b5f7a !important;
+}
+
+/* ── Stability / deprecation badges ───────────────────────────────────── */
+.stab {
+    border-radius: 4px !important;
+}
+
+/* ── Toggle / details ─────────────────────────────────────────────────── */
+details.toggle summary {
+    color: #5b8fff !important;
+}
+
+details.toggle summary:hover {
+    color: #ff7c5c !important;
+}
+
+/* ── Module list items ────────────────────────────────────────────────── */
+ul.all-items li {
+    padding: 4px 0 !important;
+}
+
+/* ── Scrollbar ────────────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f0f1f8;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #c8cade;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #a78bfa;
+}
+
+/* ── Source view ───────────────────────────────────────────────────────── */
+.src .sidebar {
+    background: #f0f1f8 !important;
+}
+
+/* ── Mobile: give content room to breathe ─────────────────────────────── */
+@media (max-width: 700px) {
+    .width-limiter {
+        padding: 0 16px !important;
+    }
+}

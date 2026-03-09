@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>shp2geojson — CLI Mockup</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0d0f14;
+    --surface:   #13161e;
+    --border:    #1e2333;
+    --border2:   #252b3b;
+    --text:      #c8d0e8;
+    --muted:     #4a5270;
+    --dim:       #6b7499;
+    --green:     #56d18a;
+    --green-dim: #1e4233;
+    --red:       #f06b6b;
+    --red-dim:   #3b1a1a;
+    --yellow:    #f0c040;
+    --yellow-dim:#302610;
+    --blue:      #5b8fff;
+    --blue-dim:  #1a2540;
+    --coral:     #ff7c5c;
+    --coral-dim: #2e1810;
+    --cyan:      #4ecdc4;
+    --purple:    #a78bfa;
+    --bar-track: #1a1f2e;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    min-height: 100vh;
+    padding: 32px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+    align-items: center;
+  }
+
+  h1 {
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    text-transform: uppercase;
+    text-align: center;
+  }
+
+  /* ── Terminal Window ── */
+  .terminal {
+    width: 100%;
+    max-width: 860px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+  }
+
+  .term-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: #0f1219;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .dot-r { background: #ff5f57; }
+  .dot-y { background: #febc2e; }
+  .dot-g { background: #28c840; }
+  .term-name { flex: 1; text-align: center; font-size: 11px; color: var(--muted); letter-spacing: 0.1em; }
+
+  .term-body { padding: 20px 24px; }
+
+  /* ── Typography helpers ── */
+  .prompt  { color: var(--coral); }
+  .cmd     { color: var(--text); }
+  .flag    { color: var(--blue); }
+  .val     { color: var(--cyan); }
+  .g       { color: var(--green); }
+  .r       { color: var(--red); }
+  .y       { color: var(--yellow); }
+  .b       { color: var(--blue); }
+  .m       { color: var(--muted); }
+  .d       { color: var(--dim); }
+  .p       { color: var(--purple); }
+  .co      { color: var(--coral); }
+  .bold    { font-weight: 600; }
+  .line    { display: block; white-space: pre; }
+
+  /* ── Section label ── */
+  .section-label {
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* ── Progress bar ── */
+  .bar-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 4px 0;
+  }
+  .bar-track {
+    flex: 1;
+    height: 8px;
+    background: var(--bar-track);
+    border-radius: 4px;
+    overflow: hidden;
+    max-width: 280px;
+  }
+  .bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.3s ease;
+  }
+  .bar-label { color: var(--dim); font-size: 12px; min-width: 36px; text-align: right; }
+
+  .bar-fill.green  { background: linear-gradient(90deg, var(--green-dim), var(--green)); }
+  .bar-fill.blue   { background: linear-gradient(90deg, var(--blue-dim), var(--blue)); }
+  .bar-fill.yellow { background: linear-gradient(90deg, var(--yellow-dim), var(--yellow)); }
+  .bar-fill.coral  { background: linear-gradient(90deg, var(--coral-dim), var(--coral)); }
+
+  /* ── Worker row ── */
+  .worker-row {
+    display: grid;
+    grid-template-columns: 68px 220px 1fr 60px 72px;
+    align-items: center;
+    gap: 12px;
+    padding: 3px 0;
+  }
+  .worker-id { color: var(--muted); }
+  .worker-file { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .worker-idle { color: var(--border2); font-style: italic; }
+
+  /* ── Slash command row ── */
+  .slash-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 4px 10px;
+    border-radius: 5px;
+    margin: 2px 0;
+    border: 1px solid transparent;
+  }
+  .slash-row:hover {
+    background: var(--blue-dim);
+    border-color: var(--border2);
+    cursor: pointer;
+  }
+  .slash-cmd  { color: var(--blue); min-width: 130px; font-weight: 500; }
+  .slash-arg  { color: var(--cyan); }
+  .slash-desc { color: var(--dim); }
+
+  /* ── Hook row ── */
+  .hook-row {
+    margin: 4px 0;
+  }
+  .hook-key { color: var(--purple); }
+  .hook-eq  { color: var(--muted); }
+  .hook-val { color: var(--green); }
+
+  /* ── JSON event ── */
+  .json-line {
+    padding: 2px 0;
+    border-left: 2px solid transparent;
+    padding-left: 8px;
+    margin-left: -10px;
+  }
+  .json-line.ev-done   { border-color: var(--green); }
+  .json-line.ev-failed { border-color: var(--red); }
+  .json-line.ev-start  { border-color: var(--blue); }
+  .json-line.ev-batch  { border-color: var(--purple); }
+  .jk { color: var(--blue); }
+  .jv { color: var(--green); }
+  .jvs { color: var(--yellow); }
+  .jvn { color: var(--coral); }
+  .jp { color: var(--dim); }
+
+  /* ── Dry run table ── */
+  .dr-row {
+    display: grid;
+    grid-template-columns: 1fr 80px 50px;
+    gap: 8px;
+    padding: 2px 0;
+  }
+  .dr-val { text-align: right; }
+
+  /* ── Divider ── */
+  .divider {
+    width: 100%;
+    max-width: 860px;
+    border: none;
+    border-top: 1px solid var(--border);
+  }
+
+  /* ── Animated cursor ── */
+  .cursor {
+    display: inline-block;
+    width: 7px;
+    height: 13px;
+    background: var(--coral);
+    animation: blink 1.1s step-end infinite;
+    vertical-align: text-bottom;
+    margin-left: 2px;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+  /* ── Animated progress ── */
+  @keyframes grow { from { width: 0 } }
+  .bar-fill { animation: grow 1.4s cubic-bezier(.4,0,.2,1) both; }
+
+  /* ── Spinner ── */
+  .spin {
+    display: inline-block;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin {
+    0%  { content: '⠋'; }
+    12% { content: '⠙'; }
+    25% { content: '⠹'; }
+    37% { content: '⠸'; }
+    50% { content: '⠼'; }
+    62% { content: '⠴'; }
+    75% { content: '⠦'; }
+    87% { content: '⠧'; }
+  }
+
+  /* ── Tab switcher ── */
+  .tabs {
+    display: flex;
+    gap: 2px;
+    width: 100%;
+    max-width: 860px;
+  }
+  .tab {
+    padding: 7px 18px;
+    border-radius: 6px 6px 0 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    cursor: pointer;
+    background: var(--surface);
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-bottom: none;
+    transition: all 0.15s;
+    letter-spacing: 0.04em;
+  }
+  .tab.active {
+    background: var(--surface);
+    color: var(--coral);
+    border-color: var(--border2);
+    border-bottom: 1px solid var(--surface);
+    position: relative;
+    bottom: -1px;
+  }
+  .tab:hover:not(.active) { color: var(--text); }
+
+  .pane { display: none; }
+  .pane.active { display: block; }
+
+  .gap4  { height: 4px; }
+  .gap8  { height: 8px; }
+  .gap12 { height: 12px; }
+  .gap16 { height: 16px; }
+
+  .indent { padding-left: 16px; }
+  .indent2 { padding-left: 28px; }
+
+  /* ── Summary chips ── */
+  .chips { display: flex; gap: 16px; margin: 10px 0; }
+  .chip {
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+  }
+  .chip.ok  { background: var(--green-dim); color: var(--green); border: 1px solid #2b5c44; }
+  .chip.err { background: var(--red-dim);   color: var(--red);   border: 1px solid #5c2b2b; }
+  .chip.warn{ background: var(--yellow-dim);color: var(--yellow);border: 1px solid #5c4310; }
+</style>
+</head>
+<body>
+
+<h1>shp2geojson &nbsp;·&nbsp; CLI Mockup</h1>
+
+<!-- Tab bar -->
+<div class="tabs" id="tabs">
+  <div class="tab active" data-pane="interactive">Interactive Mode</div>
+  <div class="tab" data-pane="dryrun">--dry-run</div>
+  <div class="tab" data-pane="json">--output-format json</div>
+  <div class="tab" data-pane="slash">Slash Commands</div>
+  <div class="tab" data-pane="hooks">Hooks & Config</div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     PANE 1 — Interactive Mode
+════════════════════════════════════════════ -->
+<div class="terminal pane active" id="pane-interactive">
+  <div class="term-title">
+    <div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div>
+    <span class="term-name">bash — 185×52</span>
+  </div>
+  <div class="term-body">
+
+    <!-- Command -->
+    <span class="line"><span class="prompt">❯</span> <span class="cmd">shp2geojson</span> <span class="flag">--input</span> <span class="val">./data</span> <span class="flag">--output</span> <span class="val">./geojson</span> <span class="flag">--jobs</span> <span class="val">8</span> <span class="flag">--resume</span></span>
+    <div class="gap12"></div>
+
+    <!-- Header -->
+    <span class="line"><span class="co bold">shp2geojson</span>  <span class="d">v0.1.0</span>   <span class="m">run_id:</span> <span class="p">a3f9c1d2</span>   <span class="m">workers:</span> <span class="b">8</span>   <span class="m">resume:</span> <span class="g">✓</span></span>
+    <div class="gap4"></div>
+    <span class="line"><span class="m">────────────────────────────────────────────────────────────────────────</span></span>
+    <div class="gap8"></div>
+
+    <!-- Overall progress -->
+    <span class="line"><span class="m">Overall</span></span>
+    <div class="gap4"></div>
+    <div class="bar-wrap">
+      <div class="bar-track" style="max-width:420px">
+        <div class="bar-fill green" style="width:43.6%"></div>
+      </div>
+      <span class="bar-label" style="min-width:120px;color:var(--text)">  1,240 <span class="m">/</span> 2,847</span>
+      <span class="d">&nbsp;&nbsp;3.2 GB processed</span>
+      <span class="d">&nbsp;&nbsp;ETA <span class="y">00:14:32</span></span>
+    </div>
+    <div class="gap12"></div>
+
+    <!-- Workers -->
+    <span class="line"><span class="m">Workers</span></span>
+    <div class="gap4"></div>
+
+    <!-- worker 1 -->
+    <div class="worker-row">
+      <span class="worker-id m">Worker <span class="b">1</span></span>
+      <span class="worker-file">counties_2024.shp</span>
+      <div class="bar-wrap" style="margin:0">
+        <div class="bar-track"><div class="bar-fill blue" style="width:63%"></div></div>
+        <span class="bar-label">63%</span>
+      </div>
+      <span class="d">1.2 MB/s</span>
+      <span class="g">▲ active</span>
+    </div>
+
+    <!-- worker 2 -->
+    <div class="worker-row">
+      <span class="worker-id m">Worker <span class="b">2</span></span>
+      <span class="worker-file">watersheds_global.shp</span>
+      <div class="bar-wrap" style="margin:0">
+        <div class="bar-track"><div class="bar-fill blue" style="width:18%"></div></div>
+        <span class="bar-label">18%</span>
+      </div>
+      <span class="d">0.8 MB/s</span>
+      <span class="g">▲ active</span>
+    </div>
+
+    <!-- worker 3 -->
+    <div class="worker-row">
+      <span class="worker-id m">Worker <span class="b">3</span></span>
+      <span class="worker-file">motorways_europe.shp</span>
+      <div class="bar-wrap" style="margin:0">
+        <div class="bar-track"><div class="bar-fill coral" style="width:49%"></div></div>
+        <span class="bar-label">49%</span>
+      </div>
+      <span class="d">2.1 MB/s</span>
+      <span class="g">▲ active</span>
+    </div>
+
+    <!-- worker 4 -->
+    <div class="worker-row">
+      <span class="worker-id m">Worker <span class="b">4</span></span>
+      <span class="worker-file">admin_boundaries_sa.shp</span>
+      <div class="bar-wrap" style="margin:0">
+        <div class="bar-track"><div class="bar-fill blue" style="width:81%"></div></div>
+        <span class="bar-label">81%</span>
+      </div>
+      <span class="d">3.4 MB/s</span>
+      <span class="g">▲ active</span>
+    </div>
+
+    <!-- worker 5 idle -->
+    <div class="worker-row">
+      <span class="worker-id m">Worker <span class="b">5</span></span>
+      <span class="worker-idle">(idle — queue empty)</span>
+      <span></span><span></span><span></span>
+    </div>
+
+    <div class="gap12"></div>
+    <span class="line"><span class="m">────────────────────────────────────────────────────────────────────────</span></span>
+    <div class="gap8"></div>
+
+    <!-- Summary chips -->
+    <div class="chips">
+      <div class="chip ok">✓ converted  1,234</div>
+      <div class="chip err">✗ failed  6</div>
+      <div class="chip warn">⚠ skipped  14</div>
+    </div>
+
+    <div class="gap8"></div>
+    <span class="line"><span class="m">Type </span><span class="b">/help</span><span class="m"> for slash commands &nbsp;·&nbsp; </span><span class="b">Ctrl+C</span><span class="m"> to pause and checkpoint</span></span>
+    <div class="gap4"></div>
+    <span class="line"><span class="prompt">❯</span> <span class="cursor"></span></span>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     PANE 2 — dry-run
+════════════════════════════════════════════ -->
+<div class="terminal pane" id="pane-dryrun">
+  <div class="term-title">
+    <div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div>
+    <span class="term-name">bash — 185×52</span>
+  </div>
+  <div class="term-body">
+    <span class="line"><span class="prompt">❯</span> <span class="cmd">shp2geojson</span> <span class="flag">--input</span> <span class="val">./data</span> <span class="flag">--dry-run</span></span>
+    <div class="gap12"></div>
+    <span class="line"><span class="co bold">shp2geojson</span>  <span class="d">v0.1.0</span>   <span class="m">mode:</span> <span class="y">dry-run</span>   <span class="m">(no files will be written)</span></span>
+    <div class="gap4"></div>
+    <span class="line"><span class="m">────────────────────────────────────────────────────────────────────────</span></span>
+    <div class="gap8"></div>
+
+    <span class="line"><span class="m">  Scanning </span><span class="val">./data</span><span class="m"> recursively…</span>  <span class="g">done</span>  <span class="d">(0.4s)</span></span>
+    <div class="gap12"></div>
+
+    <!-- Discovery table -->
+    <span class="line"><span class="m">  Discovery</span></span>
+    <div class="gap4"></div>
+    <span class="line"><span class="indent d">Shapefiles found          </span><span class="text bold">2,847</span></span>
+    <span class="line"><span class="indent g">Valid (all sidecars)       </span><span class="g bold">2,841  ✓</span></span>
+    <span class="line"><span class="indent r">Missing .dbf              </span><span class="r bold">    4  ✗</span></span>
+    <span class="line"><span class="indent r">Missing .shx              </span><span class="r bold">    2  ✗</span></span>
+    <span class="line"><span class="indent y">Missing .prj (CRS unknown)</span><span class="y bold">   18  ⚠</span></span>
+    <div class="gap12"></div>
+
+    <!-- Size estimate -->
+    <span class="line"><span class="m">  Size Estimate</span></span>
+    <div class="gap4"></div>
+    <span class="line"><span class="indent d">Input size (shapefiles)   </span><span class="text">  3.8 GB</span></span>
+    <span class="line"><span class="indent d">Estimated GeoJSON output  </span><span class="y">~14.2 GB</span>  <span class="m">(~3.7× expansion)</span></span>
+    <span class="line"><span class="indent d">Available disk space      </span><span class="g">  42.1 GB  ✓</span></span>
+    <div class="gap12"></div>
+
+    <!-- CRS breakdown -->
+    <span class="line"><span class="m">  CRS Breakdown</span></span>
+    <div class="gap4"></div>
+    <span class="line"><span class="indent d">EPSG:4326  (WGS84)        </span><span class="g">2,801</span>  <span class="m">no reprojection needed</span></span>
+    <span class="line"><span class="indent d">EPSG:32637 (UTM 37N)      </span><span class="b">   40</span>  <span class="m">will reproject</span></span>
+    <span class="line"><span class="indent d">Unknown / no .prj         </span><span class="y">   18</span>  <span class="m">passthrough with warning</span></span>
+    <div class="gap12"></div>
+
+    <span class="line"><span class="m">────────────────────────────────────────────────────────────────────────</span></span>
+    <div class="gap8"></div>
+    <span class="line">  Run <span class="g bold">without --dry-run</span> to begin conversion.</span>
+    <span class="line">  Use <span class="b">--output ./geojson</span> to specify output folder.</span>
+    <div class="gap8"></div>
+    <span class="line"><span class="prompt">❯</span> <span class="cursor"></span></span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     PANE 3 — JSON output format
+════════════════════════════════════════════ -->
+<div class="terminal pane" id="pane-json">
+  <div class="term-title">
+    <div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div>
+    <span class="term-name">bash — 185×52</span>
+  </div>
+  <div class="term-body">
+    <span class="line"><span class="prompt">❯</span> <span class="cmd">shp2geojson</span> <span class="flag">--input</span> <span class="val">./data</span> <span class="flag">--output</span> <span class="val">./geojson</span> <span class="flag">--output-format</span> <span class="val">json</span> <span class="m">| jq .</span></span>
+    <div class="gap12"></div>
+
+    <div class="json-line ev-start">
+      <span class="line"><span class="jp">{</span>
+  <span class="jk">"event"</span><span class="jp">:</span> <span class="jvs">"start"</span><span class="jp">,</span>
+  <span class="jk">"total_files"</span><span class="jp">:</span> <span class="jvn">2847</span><span class="jp">,</span>
+  <span class="jk">"valid"</span><span class="jp">:</span> <span class="jvn">2841</span><span class="jp">,</span>
+  <span class="jk">"invalid"</span><span class="jp">:</span> <span class="jvn">6</span><span class="jp">,</span>
+  <span class="jk">"timestamp"</span><span class="jp">:</span> <span class="jvs">"2026-03-08T14:00:00Z"</span>
+<span class="jp">}</span></span>
+    </div>
+    <div class="gap4"></div>
+
+    <div class="json-line ev-done">
+      <span class="line"><span class="jp">{</span>
+  <span class="jk">"event"</span><span class="jp">:</span> <span class="jvs">"file_done"</span><span class="jp">,</span>
+  <span class="jk">"file"</span><span class="jp">:</span> <span class="jvs">"counties/counties_2024.shp"</span><span class="jp">,</span>
+  <span class="jk">"output"</span><span class="jp">:</span> <span class="jvs">"geojson/counties/counties_2024.geojson"</span><span class="jp">,</span>
+  <span class="jk">"features"</span><span class="jp">:</span> <span class="jvn">9821</span><span class="jp">,</span>
+  <span class="jk">"duration_ms"</span><span class="jp">:</span> <span class="jvn">1240</span><span class="jp">,</span>
+  <span class="jk">"reprojected"</span><span class="jp">:</span> <span class="jv">false</span><span class="jp">,</span>
+  <span class="jk">"worker"</span><span class="jp">:</span> <span class="jvn">1</span>
+<span class="jp">}</span></span>
+    </div>
+    <div class="gap4"></div>
+
+    <div class="json-line ev-failed">
+      <span class="line"><span class="jp">{</span>
+  <span class="jk">"event"</span><span class="jp">:</span> <span class="jvs">"file_failed"</span><span class="jp">,</span>
+  <span class="jk">"file"</span><span class="jp">:</span> <span class="jvs">"broken/corrupt_2019.shp"</span><span class="jp">,</span>
+  <span class="jk">"reason"</span><span class="jp">:</span> <span class="jvs">"unexpected EOF at record 4821"</span><span class="jp">,</span>
+  <span class="jk">"worker"</span><span class="jp">:</span> <span class="jvn">3</span><span class="jp">,</span>
+  <span class="jk">"timestamp"</span><span class="jp">:</span> <span class="jvs">"2026-03-08T14:23:45Z"</span>
+<span class="jp">}</span></span>
+    </div>
+    <div class="gap4"></div>
+
+    <div class="json-line ev-batch">
+      <span class="line"><span class="jp">{</span>
+  <span class="jk">"event"</span><span class="jp">:</span> <span class="jvs">"batch_done"</span><span class="jp">,</span>
+  <span class="jk">"converted"</span><span class="jp">:</span> <span class="jvn">2841</span><span class="jp">,</span>
+  <span class="jk">"failed"</span><span class="jp">:</span> <span class="jvn">6</span><span class="jp">,</span>
+  <span class="jk">"elapsed_s"</span><span class="jp">:</span> <span class="jvn">847</span><span class="jp">,</span>
+  <span class="jk">"gb_processed"</span><span class="jp">:</span> <span class="jvn">3.2</span><span class="jp">,</span>
+  <span class="jk">"gb_output"</span><span class="jp">:</span> <span class="jvn">11.8</span>
+<span class="jp">}</span></span>
+    </div>
+    <div class="gap12"></div>
+
+    <span class="line"><span class="m"># Filter only failures:</span></span>
+    <span class="line"><span class="prompt">❯</span> <span class="cmd">shp2geojson</span> <span class="flag">...</span> <span class="flag">--output-format</span> <span class="val">json</span> <span class="m">| jq</span> <span class="y">'select(.event == "file_failed")'</span></span>
+    <div class="gap4"></div>
+    <span class="line"><span class="prompt">❯</span> <span class="cursor"></span></span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     PANE 4 — Slash Commands
+════════════════════════════════════════════ -->
+<div class="terminal pane" id="pane-slash">
+  <div class="term-title">
+    <div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div>
+    <span class="term-name">bash — 185×52</span>
+  </div>
+  <div class="term-body">
+    <span class="line"><span class="m">  (Job running…) Type a slash command:</span></span>
+    <div class="gap4"></div>
+    <span class="line"><span class="prompt">❯</span> <span class="b">/</span><span class="cursor"></span></span>
+    <div class="gap12"></div>
+    <span class="line"><span class="m">──── Available Commands ─────────────────────────────────────────────</span></span>
+    <div class="gap8"></div>
+
+    <div class="slash-row">
+      <span class="slash-cmd">/status</span>
+      <span class="slash-desc">Print live worker throughput and queue depth</span>
+    </div>
+    <div class="slash-row">
+      <span class="slash-cmd">/pause</span>
+      <span class="slash-desc">Gracefully pause all workers, write checkpoint</span>
+    </div>
+    <div class="slash-row">
+      <span class="slash-cmd">/resume</span>
+      <span class="slash-desc">Resume paused workers</span>
+    </div>
+    <div class="slash-row">
+      <span class="slash-cmd">/workers <span class="slash-arg">&lt;N&gt;</span></span>
+      <span class="slash-desc">Dynamically scale worker count up or down</span>
+    </div>
+    <div class="slash-row">
+      <span class="slash-cmd">/skip <span class="slash-arg">&lt;file&gt;</span></span>
+      <span class="slash-desc">Skip a specific pending file, mark as SKIPPED</span>
+    </div>
+    <div class="slash-row">
+      <span class="slash-cmd">/log</span>
+      <span class="slash-desc">Tail conversion_errors.log inline</span>
+    </div>
+    <div class="slash-row">
+      <span class="slash-cmd">/dry-run</span>
+      <span class="slash-desc">Preview remaining pending files without converting</span>
+    </div>
+    <div class="slash-row">
+      <span class="slash-cmd">/quit</span>
+      <span class="slash-desc">Checkpoint state and exit cleanly</span>
+    </div>
+
+    <div class="gap12"></div>
+    <span class="line"><span class="m">  Example:</span>  <span class="b">/workers 16</span>  <span class="d">→ scales from 8 to 16 workers immediately</span></span>
+    <span class="line"><span class="m">  Example:</span>  <span class="b">/skip broken/file.shp</span>  <span class="d">→ removes from queue, logs as SKIPPED</span></span>
+    <div class="gap8"></div>
+    <span class="line"><span class="d">  Ctrl+C — pause and checkpoint  ·  Ctrl+D — force quit (no checkpoint)</span></span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     PANE 5 — Hooks & Config
+════════════════════════════════════════════ -->
+<div class="terminal pane" id="pane-hooks">
+  <div class="term-title">
+    <div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div>
+    <span class="term-name">.shp2geojson.toml</span>
+  </div>
+  <div class="term-body">
+    <span class="line"><span class="m"># .shp2geojson.toml — version-controllable project config</span></span>
+    <div class="gap12"></div>
+
+    <span class="line"><span class="y bold">[conversion]</span></span>
+    <span class="line"><span class="hook-key">reproject</span>       <span class="hook-eq">=</span> <span class="b">true</span>        <span class="m"># auto-reproject to WGS84</span></span>
+    <span class="line"><span class="hook-key">output_format</span>   <span class="hook-eq">=</span> <span class="hook-val">"geojson"</span>  <span class="m"># or "geojsonl"</span></span>
+    <span class="line"><span class="hook-key">overwrite</span>       <span class="hook-eq">=</span> <span class="b">false</span></span>
+    <span class="line"><span class="hook-key">jobs</span>            <span class="hook-eq">=</span> <span class="jvn">0</span>          <span class="m"># 0 = auto (logical CPUs)</span></span>
+    <div class="gap12"></div>
+
+    <span class="line"><span class="y bold">[output]</span></span>
+    <span class="line"><span class="hook-key">mirror_structure</span> <span class="hook-eq">=</span> <span class="b">true</span></span>
+    <span class="line"><span class="hook-key">log_file</span>         <span class="hook-eq">=</span> <span class="hook-val">"./logs/conversion_errors.log"</span></span>
+    <div class="gap12"></div>
+
+    <span class="line"><span class="y bold">[hooks]</span></span>
+    <span class="line"><span class="m"># Template vars: {{file}} {{output}} {{features}} {{duration_ms}} {{reason}} {{summary_json}}</span></span>
+    <div class="gap4"></div>
+    <span class="line"><span class="hook-key">on_file_complete</span> <span class="hook-eq">=</span> <span class="hook-val">"aws s3 cp {{output}} s3://my-bucket/geojson/ --quiet"</span></span>
+    <div class="gap4"></div>
+    <span class="line"><span class="hook-key">on_file_failed</span>   <span class="hook-eq">=</span> <span class="hook-val">"curl -s https://hooks.slack.com/T.../B... \</span></span>
+    <span class="line"><span class="indent2 hook-val">-d '{\"text\": \"❌ Failed: {{file}} — {{reason}}\"}'</span></span>
+    <div class="gap4"></div>
+    <span class="line"><span class="hook-key">on_batch_done</span>    <span class="hook-eq">=</span> <span class="hook-val">"python3 ingest.py --summary '{{summary_json}}'"</span></span>
+    <div class="gap16"></div>
+
+    <span class="line"><span class="m">──── Hook Firing Log ───────────────────────────────────────────────</span></span>
+    <div class="gap8"></div>
+    <span class="line"><span class="d">[14:22:01]</span>  <span class="g">HOOK OK </span>  <span class="m">on_file_complete</span>  <span class="d">counties_2024.shp → s3 upload ✓</span></span>
+    <span class="line"><span class="d">[14:23:45]</span>  <span class="r">HOOK ERR</span>  <span class="m">on_file_failed   </span>  <span class="d">curl exit 22 — Slack unreachable</span></span>
+    <span class="line"><span class="d">[14:26:03]</span>  <span class="g">HOOK OK </span>  <span class="m">on_file_complete</span>  <span class="d">watersheds.shp → s3 upload ✓</span></span>
+    <div class="gap4"></div>
+    <span class="line"><span class="m">  Hook failures are logged but never stop the conversion pipeline.</span></span>
+  </div>
+</div>
+
+<script>
+  const tabs = document.querySelectorAll('.tab');
+  const panes = document.querySelectorAll('.pane');
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const target = tab.dataset.pane;
+      tabs.forEach(t => t.classList.remove('active'));
+      panes.forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('pane-' + target).classList.add('active');
+    });
+  });
+</script>
+</body>
+</html>
