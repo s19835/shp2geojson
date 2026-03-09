@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    name: Format & Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo fmt -- --check
+      - run: sudo apt-get update && sudo apt-get install -y libproj-dev
+      - run: cargo clippy -- -D warnings
+      - run: cargo clippy --no-default-features -- -D warnings
+
+  test:
+    name: Test (${{ matrix.os }})
+    needs: check
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            install: sudo apt-get update && sudo apt-get install -y libproj-dev
+          - os: macos-latest
+            install: brew install proj
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: ${{ matrix.install }}
+      - run: cargo test
+      - run: cargo test --no-default-features
+
+  build:
+    name: Build release (${{ matrix.os }})
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            install: sudo apt-get update && sudo apt-get install -y libproj-dev
+          - os: macos-latest
+            install: brew install proj
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: ${{ matrix.install }}
+      - run: cargo build --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shp2geojson-${{ matrix.os }}
+          path: target/release/shp2geojson
