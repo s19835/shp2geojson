@@ -4,20 +4,67 @@ High-performance ESRI Shapefile (.shp) to GeoJSON converter. Handles everything 
 
 ## Install
 
-### From source
+### Pre-built binaries (recommended)
+
+Download from the [latest release](https://github.com/s19835/shp2geojson/releases/latest):
+
+| Platform | Artifact | Reprojection |
+|----------|----------|:---:|
+| macOS (Apple Silicon) | `shp2geojson-aarch64-apple-darwin.tar.gz` | ✅ |
+| Linux x86\_64 | `shp2geojson-x86_64-unknown-linux-gnu.tar.gz` | ✅ |
+| Linux ARM64 | `shp2geojson-aarch64-unknown-linux-gnu.tar.gz` | — |
+| Windows x86\_64 | `shp2geojson-x86_64-pc-windows-msvc.zip` | — |
+
+> Linux ARM64 and Windows binaries are lite builds (no reprojection). Use Docker for full support on those platforms.
+
+### Package managers
 
 ```bash
-# With reprojection support (requires libproj on the system)
-cargo install --path .
+# macOS (Homebrew)
+brew tap s19835/tap && brew install shp2geojson
 
-# Without reprojection
-cargo install --path . --no-default-features
+# Windows (Scoop)
+scoop bucket add s19835 https://github.com/s19835/scoop-bucket
+scoop install shp2geojson
+
+# Docker (all platforms, full reprojection support)
+docker pull ghcr.io/s19835/shp2geojson:latest
 ```
+
+### cargo install (from crates.io)
+
+Requires **Rust 1.88+** and system dependencies for reprojection support.
+
+**Linux / WSL (Ubuntu/Debian):**
+```bash
+# Install system dependencies first
+sudo apt install pkg-config libproj-dev cmake
+
+# Full install (with reprojection)
+cargo install shp2geojson
+
+# Or skip system deps — install without reprojection
+cargo install shp2geojson --no-default-features
+```
+
+**macOS:**
+```bash
+brew install proj pkgconf cmake
+cargo install shp2geojson
+```
+
+**Windows (native):**
+```bash
+# No system deps needed — lite build
+cargo install shp2geojson --no-default-features
+```
+
+> **Note:** `cargo install shp2geojson` (with default features) requires `libproj`, `pkg-config`, and `cmake` on the system. If you just want to convert shapefiles without CRS reprojection, `--no-default-features` works out of the box on any platform with no extra installs.
 
 ### Prerequisites
 
-- **Rust 1.70+**
-- **libproj** (optional, for CRS reprojection) — install via `brew install proj` (macOS), `apt install libproj-dev` (Debian/Ubuntu), or `dnf install proj-devel` (Fedora)
+- **Rust 1.88+** (run `rustup update stable` if you get version errors)
+- **libproj 9.2+**, **pkg-config**, **cmake** — only needed for reprojection (`--features reproject`)
 
 ## Quick start
 
