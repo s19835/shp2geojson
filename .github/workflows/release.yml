@@ -46,6 +46,7 @@ jobs:
             features: "--no-default-features"
             artifact: shp2geojson
             ext: tar.gz
+            linker: aarch64-linux-gnu-gcc
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -59,6 +60,8 @@ jobs:
         run: ${{ matrix.install }}
 
       - name: Build
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: ${{ matrix.linker }}
         run: cargo build --release --target ${{ matrix.target }} ${{ matrix.features }}
 
       - name: Package (Unix)
