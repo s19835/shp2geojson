@@ -4,7 +4,23 @@ High-performance ESRI Shapefile (.shp) to GeoJSON converter. Handles everything 
 
 ## Install
 
-### Pre-built binaries (recommended)
+### One-liner (fastest — no Rust, no system packages required)
+
+**Linux / macOS / WSL:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/s19835/shp2geojson/master/install.sh | sh
+```
+
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/s19835/shp2geojson/master/install.ps1 | iex
+```
+
+Downloads the right pre-built binary for your platform and installs it to `~/.local/bin` automatically.
+
+---
+
+### Pre-built binaries (manual)
 
 Download from the [latest release](https://github.com/s19835/shp2geojson/releases/latest):
 
