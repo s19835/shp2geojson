@@ -17,34 +17,67 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # ── Full builds (with reprojection) ───────────────────────────────
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             install: sudo apt-get update && sudo apt-get install -y libproj-dev
+            features: ""
             artifact: shp2geojson
+            ext: tar.gz
+
           - target: aarch64-apple-darwin
             os: macos-latest
             install: brew install proj
+            features: ""
             artifact: shp2geojson
+            ext: tar.gz
+
+          # ── Lite builds (no reprojection — no libproj required) ───────────
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            install: ""
+            features: "--no-default-features"
+            artifact: shp2geojson.exe
+            ext: zip
+
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            install: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu
+            features: "--no-default-features"
+            artifact: shp2geojson
+            ext: tar.gz
+
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
-      - run: ${{ matrix.install }}
+
+      - name: Install system dependencies
+        if: ${{ matrix.install != '' }}
+        run: ${{ matrix.install }}
 
       - name: Build
-        run: cargo build --release --target ${{ matrix.target }}
+        run: cargo build --release --target ${{ matrix.target }} ${{ matrix.features }}
 
-      - name: Package
+      - name: Package (Unix)
+        if: ${{ matrix.ext == 'tar.gz' }}
         run: |
           cd target/${{ matrix.target }}/release
           tar czf ../../../shp2geojson-${{ matrix.target }}.tar.gz ${{ matrix.artifact }}
 
+      - name: Package (Windows)
+        if: ${{ matrix.ext == 'zip' }}
+        shell: pwsh
+        run: |
+          cd target/${{ matrix.target }}/release
+          Compress-Archive -Path ${{ matrix.artifact }} -DestinationPath ../../../shp2geojson-${{ matrix.target }}.zip
+
       - uses: actions/upload-artifact@v4
         with:
           name: shp2geojson-${{ matrix.target }}
-          path: shp2geojson-${{ matrix.target }}.tar.gz
+          path: shp2geojson-${{ matrix.target }}.${{ matrix.ext }}
 
   release:
     name: Create GitHub Release
@@ -63,4 +96,4 @@ jobs:
           gh release create ${{ github.ref_name }} \
             --title "${{ github.ref_name }}" \
             --generate-notes \
-            shp2geojson-*.tar.gz
+            shp2geojson-*.tar.gz shp2geojson-*.zip

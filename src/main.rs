@@ -251,9 +251,20 @@ fn run() -> anyhow::Result<()> {
     let mp_slot: MpSlot = Arc::new(Mutex::new(None));
     init_tracing(Arc::clone(&mp_slot), Some(&log_path))?;
 
+    // Lite build: warn prominently regardless of RUST_LOG setting.
     #[cfg(not(feature = "reproject"))]
     if reproject {
-        tracing::warn!("binary built without reprojection support; --reproject ignored");
+        let is_tty = console::Term::stderr().is_term();
+        let msg = if is_tty {
+            "\x1b[38;5;220m⚠  Reprojection not available\x1b[0m — this binary was compiled \
+without libproj support.\n   Coordinates will pass through unchanged regardless of .prj content.\n   \
+Use Docker or build from source with \x1b[38;5;69m--features reproject\x1b[0m if you need reprojection.\n"
+        } else {
+            "warning: reprojection not available — this binary was compiled without libproj \
+support. Coordinates will pass through unchanged. Use Docker or build from source with \
+--features reproject if you need reprojection.\n"
+        };
+        eprint!("{msg}");
     }
 
     // ── Checkpoint setup ──────────────────────────────────────────────────────
